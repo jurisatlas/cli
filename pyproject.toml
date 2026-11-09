@@ -1,0 +1,19 @@
+[project]
+name = "jurisatlas"
+version = "1.1.0"
+description = "Interactive Country & AI Client Installer for JurisAtlas Legal MCP Servers (42 Jurisdictions)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "JurisAtlas", email = "noreply@users.noreply.github.com"}]
+dependencies = []
+
+[project.scripts]
+jurisatlas = "jurisatlas_cli:main"
+
+[tool.setuptools]
+py-modules = ["jurisatlas_cli"]
+
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
