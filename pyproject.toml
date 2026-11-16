@@ -1,6 +1,6 @@
 [project]
 name = "jurisatlas"
-version = "1.2.0"
+version = "1.2.1"
 description = "Interactive Country & AI Client Installer for JurisAtlas Legal MCP Servers (42 Jurisdictions)"
 readme = "README.md"
 requires-python = ">=3.11"

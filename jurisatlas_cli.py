@@ -68,12 +68,12 @@ JURISDICTIONS: dict[str, str] = {
 }
 
 CLIENT_SPECS: list[tuple[str, str, bool]] = [
-    ("1", "Claude Desktop & Claude Code CLI", True),
-    ("2", "ChatGPT Desktop & OpenAI Codex CLI", True),
-    ("3", "Cursor", True),
-    ("4", "Windsurf", True),
-    ("5", "VS Code (GitHub Copilot / Cline / Roo Code)", True),
-    ("6", "Google Antigravity / Gemini CLI", True),
+    ("1", "Claude Desktop & Claude Code CLI", False),
+    ("2", "ChatGPT Desktop & OpenAI Codex CLI", False),
+    ("3", "Cursor", False),
+    ("4", "Windsurf", False),
+    ("5", "VS Code (GitHub Copilot / Cline / Roo Code)", False),
+    ("6", "Google Antigravity / Gemini CLI", False),
     ("7", "Perplexity / Continue.dev / LM Studio", False),
 ]
 
@@ -241,7 +241,7 @@ def parse_client_selection(raw_clients: str) -> list[str]:
     valid_keys = [k for k, _, _ in CLIENT_SPECS]
     text = raw_clients.strip().lower()
     if not text:
-        return valid_keys
+        return []
 
     normalized = text.replace(";", ",")
     if "," not in normalized and " " in normalized:
@@ -441,7 +441,7 @@ def run_gui(dry_run: bool = False) -> None:
 
     root = tk.Tk()
     root.title("JurisAtlas — Interactive Legal MCP Installer (42 Jurisdictions)")
-    root.geometry("760x700")
+    root.geometry("760x720")
     root.minsize(660, 560)
 
     is_mac = platform.system() == "Darwin"
@@ -487,9 +487,65 @@ def run_gui(dry_run: bool = False) -> None:
         font=(font_family, 10),
     ).pack(fill="x")
 
-    # Step 1: Country Selection
+    # Bottom fixed section packed BEFORE the expandable country list so the
+    # AI client selector, progress bar, and Install button are always visible.
+    bottom_section = ttk.Frame(container)
+    bottom_section.pack(side="bottom", fill="x")
+
+    # Step 2: AI Client Selection
+    client_frame = ttk.LabelFrame(bottom_section, text="2. Select the AI Application(s) You Use", padding=(10, 8))
+    client_frame.pack(fill="x", pady=(0, 10))
+
+    client_toolbar = ttk.Frame(client_frame)
+    client_toolbar.pack(fill="x", pady=(0, 6))
+
+    client_vars: dict[str, tk.BooleanVar] = {
+        key: tk.BooleanVar(value=default) for key, _, default in CLIENT_SPECS
+    }
+
+    def set_all_clients(state: bool) -> None:
+        for var in client_vars.values():
+            var.set(state)
+
+    ttk.Button(client_toolbar, text="Select All Clients", command=lambda: set_all_clients(True)).pack(
+        side="left", padx=(0, 6)
+    )
+    ttk.Button(client_toolbar, text="Clear Clients", command=lambda: set_all_clients(False)).pack(side="left")
+
+    clients_grid = ttk.Frame(client_frame)
+    clients_grid.pack(fill="x")
+    clients_grid.columnconfigure(0, weight=1)
+    clients_grid.columnconfigure(1, weight=1)
+
+    for idx, (key, label, _default) in enumerate(CLIENT_SPECS):
+        ttk.Checkbutton(
+            clients_grid,
+            text=label,
+            variable=client_vars[key],
+        ).grid(row=idx // 2, column=idx % 2, sticky="w", padx=6, pady=3)
+
+    # Progress & Action Section
+    status_var = tk.StringVar(value="Select jurisdictions and AI applications above, then click Install.")
+    ttk.Label(bottom_section, textvariable=status_var, font=(font_family, 10)).pack(anchor="w", pady=(2, 4))
+
+    progress = ttk.Progressbar(bottom_section, orient="horizontal", mode="determinate", maximum=100, value=0)
+    progress.pack(fill="x", pady=(0, 10))
+
+    btn_row = ttk.Frame(bottom_section)
+    btn_row.pack(fill="x")
+
+    install_btn = ttk.Button(
+        btn_row,
+        text="Install to Selected AI Clients",
+        default="active",
+    )
+    install_btn.pack(side="left", fill="x", expand=True, padx=(0, 8))
+    close_btn = ttk.Button(btn_row, text="Close", command=lambda: root.destroy())
+    close_btn.pack(side="right")
+
+    # Step 1: Expandable Country Selection (fills remaining middle space)
     country_frame = ttk.LabelFrame(container, text="1. Select Jurisdictions (Countries)", padding=(10, 8))
-    country_frame.pack(fill="both", expand=True, pady=(0, 10))
+    country_frame.pack(side="top", fill="both", expand=True, pady=(0, 10))
 
     toolbar = ttk.Frame(country_frame)
     toolbar.pack(fill="x", pady=(0, 8))
@@ -528,7 +584,7 @@ def run_gui(dry_run: bool = False) -> None:
     list_container = ttk.Frame(country_frame)
     list_container.pack(fill="both", expand=True)
 
-    canvas = tk.Canvas(list_container, highlightthickness=0, bd=0, bg=base_bg)
+    canvas = tk.Canvas(list_container, highlightthickness=0, bd=0, bg=base_bg, height=190)
     scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=canvas.yview)
     grid_frame = ttk.Frame(canvas)
     canvas_window = canvas.create_window((0, 0), window=grid_frame, anchor="nw")
@@ -594,57 +650,6 @@ def run_gui(dry_run: bool = False) -> None:
 
     search_var.trace_add("write", render_countries)
     render_countries()
-
-    # Step 2: AI Client Selection
-    client_frame = ttk.LabelFrame(container, text="2. Select the AI Application(s) You Use", padding=(10, 8))
-    client_frame.pack(fill="x", pady=(0, 10))
-
-    client_toolbar = ttk.Frame(client_frame)
-    client_toolbar.pack(fill="x", pady=(0, 6))
-
-    client_vars: dict[str, tk.BooleanVar] = {
-        key: tk.BooleanVar(value=default) for key, _, default in CLIENT_SPECS
-    }
-
-    def set_all_clients(state: bool) -> None:
-        for var in client_vars.values():
-            var.set(state)
-
-    ttk.Button(client_toolbar, text="Select All Clients", command=lambda: set_all_clients(True)).pack(
-        side="left", padx=(0, 6)
-    )
-    ttk.Button(client_toolbar, text="Clear Clients", command=lambda: set_all_clients(False)).pack(side="left")
-
-    clients_grid = ttk.Frame(client_frame)
-    clients_grid.pack(fill="x")
-    clients_grid.columnconfigure(0, weight=1)
-    clients_grid.columnconfigure(1, weight=1)
-
-    for idx, (key, label, _default) in enumerate(CLIENT_SPECS):
-        ttk.Checkbutton(
-            clients_grid,
-            text=label,
-            variable=client_vars[key],
-        ).grid(row=idx // 2, column=idx % 2, sticky="w", padx=6, pady=3)
-
-    # Progress & Action Section
-    status_var = tk.StringVar(value="Select jurisdictions and AI applications above, then click Install.")
-    ttk.Label(container, textvariable=status_var, font=(font_family, 10)).pack(anchor="w", pady=(2, 4))
-
-    progress = ttk.Progressbar(container, orient="horizontal", mode="determinate", maximum=100, value=0)
-    progress.pack(fill="x", pady=(0, 10))
-
-    btn_row = ttk.Frame(container)
-    btn_row.pack(fill="x")
-
-    install_btn = ttk.Button(
-        btn_row,
-        text="Install to Selected AI Clients",
-        default="active",
-    )
-    install_btn.pack(side="left", fill="x", expand=True, padx=(0, 8))
-    close_btn = ttk.Button(btn_row, text="Close", command=lambda: root.destroy())
-    close_btn.pack(side="right")
 
     def start_install() -> None:
         chosen_codes = [code for code, _ in sorted_items if country_vars[code].get()]
@@ -818,17 +823,21 @@ def run_cli(
         for key, label, _ in CLIENT_SPECS:
             print(f"  [{key}] {label}")
         print("  [A] All of the above")
-        raw_clients = input(
-            "\n2. Which AI application(s) do you use? (e.g. 1, 2, 3 or A for all) [Default: A]: "
-        ).strip()
+        while True:
+            raw_clients = input(
+                "\n2. Which AI application(s) do you use? (e.g. 1, 2, 3 or A for all): "
+            ).strip()
+            chosen_keys = parse_client_selection(raw_clients)
+            if chosen_keys:
+                break
+            print("Please select at least one AI application (1-7 or A for all) before continuing.")
     elif clients_arg is not None:
-        raw_clients = clients_arg
+        chosen_keys = parse_client_selection(clients_arg)
+        if not chosen_keys:
+            print(f"Could not match '{clients_arg}' to any supported AI application.")
+            sys.exit(1)
     else:
-        raw_clients = "a"
-
-    chosen_keys = parse_client_selection(raw_clients)
-    if not chosen_keys:
-        print(f"Could not match '{raw_clients}' to any supported AI application.")
+        print("Please specify --clients (e.g. --clients 6 or --clients all). No AI application is selected by default.")
         sys.exit(1)
 
     configured_files = install_servers(selected_codes, chosen_keys, dry_run=dry_run)

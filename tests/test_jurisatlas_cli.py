@@ -28,12 +28,16 @@ class TestCountryAndClientParsing(unittest.TestCase):
 
     def test_client_selection(self) -> None:
         all_keys = ["1", "2", "3", "4", "5", "6", "7"]
-        self.assertEqual(cli.parse_client_selection(""), all_keys)
+        self.assertEqual(cli.parse_client_selection(""), [])
+        self.assertEqual(cli.parse_client_selection("   "), [])
         self.assertEqual(cli.parse_client_selection("a"), all_keys)
         self.assertEqual(cli.parse_client_selection("all"), all_keys)
         self.assertEqual(cli.parse_client_selection("1, 6, 6"), ["1", "6"])
         self.assertEqual(cli.parse_client_selection("2 3"), ["2", "3"])
         self.assertEqual(cli.parse_client_selection("99"), [])
+
+    def test_no_ai_clients_selected_by_default(self) -> None:
+        self.assertFalse(any(default for _key, _label, default in cli.CLIENT_SPECS))
 
 
 class TestClientPathsAndInstall(unittest.TestCase):
