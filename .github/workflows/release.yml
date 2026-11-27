@@ -1,0 +1,81 @@
+name: Release JurisAtlas CLI Installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run installer unit tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+  build-and-release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Python sdist and wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Package clickable Windows and macOS Release ZIPs
+        run: |
+          python - <<'PY'
+          import pathlib, zipfile
+
+          dist = pathlib.Path("dist")
+          dist.mkdir(exist_ok=True)
+          common_files = ["jurisatlas_cli.py", "jurisatlas_i18n.py", "pyproject.toml", "LICENSE", "README.md"]
+
+          # Windows Release ZIP
+          with zipfile.ZipFile(dist / "jurisatlas-installer-windows.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+              for fname in ["Click_Here_To_Install_Windows.bat", *common_files]:
+                  zf.write(fname, arcname=f"JurisAtlas-Installer-Windows/{fname}")
+
+          # macOS Release ZIP (preserve 0755 execute bit on .command)
+          with zipfile.ZipFile(dist / "jurisatlas-installer-macos.zip", "w", zipfile.ZIP_DEFLATED) as zf:
+              cmd_path = pathlib.Path("Click_Here_To_Install_Mac.command")
+              info = zipfile.ZipInfo(f"JurisAtlas-Installer-macOS/{cmd_path.name}")
+              info.compress_type = zipfile.ZIP_DEFLATED
+              info.external_attr = 0o100755 << 16
+              zf.writestr(info, cmd_path.read_bytes())
+              for fname in common_files:
+                  zf.write(fname, arcname=f"JurisAtlas-Installer-macOS/{fname}")
+          PY
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/jurisatlas-installer-windows.zip
+            dist/jurisatlas-installer-macos.zip
